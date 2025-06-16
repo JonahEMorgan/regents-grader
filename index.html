@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Bubble Sheet</title>
+        <style>
+            body {
+                display: flex;
+                gap: 20px;
+            }
+            * {
+                font-family: sans-serif;
+            }
+            .column {
+                display: flex;
+                gap: 20px;
+                flex-direction: column;
+            }
+            .column > * {
+                margin: 0;
+                text-align: center;
+            }
+            #right {
+                flex-grow: 1;
+            }
+            iframe {
+                grid-row-start: 1;
+                grid-column: 2;
+                grid-row-end: 4;
+                width: 99%;
+                height: 100%;
+            }
+            div {
+                overflow: scroll;
+            }
+            body {
+                height: 90vh;
+            }
+            table {
+                border-collapse: collapse;
+                float: right;
+                margin-right: 10px;
+                width: 100%;
+            }
+            thead {
+                position: sticky;
+                top: 0;
+                background: #DDF;
+            }
+            td:first-child, th:first-child {
+                text-align: right;
+                padding-right: 5px;
+                width: 100%;
+            }
+            iframe, #scroll, input, button {
+                border-radius: 10px;
+                border: 1px solid black;
+            }
+            #count, button {
+                line-height: 20px;
+                border-radius: 100px;
+            }
+            input[type="checkbox"] {
+                appearance: none;
+                border-radius: 50%;
+                width: 20px;
+                height: 15px;
+            }
+            input[type="checkbox"]:checked {
+                background: black;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="column">
+            <p>How many questions?</p>
+            <input type="number" id="count" onchange="update()"/>
+            <div id="scroll">
+                <table>
+                    <thead>
+                        <tr><th>Question</th><th>A</th><th>B</th><th>C</th><th>D</th></tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+            <button onclick="grade()">Grade</button>
+        </div>
+        <div class="column" id="right">
+            <h1>NYS Regents Exam</h1>
+            <iframe src="https://nysedregents.org/"></iframe>
+        </div>
+        <script>
+            var questions = 0;
+            var input = document.querySelector("input");
+            var table = document.querySelector("tbody");
+            Array.prototype.count = function(item) {
+                return this.reduce((a, b) => b == item ? a + 1 : a, 0);
+            };
+            Array.prototype.counts = function() {
+                return [...new Set(this)].map(item => this.count(item));
+            };
+            Array.prototype.chunk = function*(count) {
+                var increment = this.length / count;
+                for(var i = 0; i < this.length; i += increment) {
+                    yield this.slice(i, i + increment);
+                }
+            };
+            Array.prototype.mode = function() {
+                return this.reduce((a, b) => this.count(a) > this.count(b) ? a : b);
+            };
+            Array.prototype.remove = function(item) {
+                return this.filter(thing => thing != item);
+            };
+            function grade() {
+                var key = prompt("Enter answer key").split(" ");
+                var questions = key.counts().remove(1).mode();
+                key = [...key.chunk(questions)];
+                var score = 0;
+                for(var i = 0; i < questions; i++) {
+                    var answer = key[i][key[i].indexOf((i + 1).toString()) + 1];
+                    if(table.children[i].children[answer].firstChild.checked) {
+                        score++;
+                    }
+                }
+                alert(`Your score is: ${score}/${questions}`);
+            }
+            function update() {
+              if(input.value > questions) {
+                while(questions < input.value) {
+                    questions++;
+                    table.insertAdjacentHTML("beforeend", `<tr>
+                        <td>${questions}</td>
+                        <td><input type="checkbox"/></td>
+                        <td><input type="checkbox"/></td>
+                        <td><input type="checkbox"/></td>
+                        <td><input type="checkbox"/></td>
+                    </tr>`);
+                }
+              }
+              if(input.value < questions) {
+                while(questions > input.value) {
+                    questions--;
+                    table.removeChild(table.lastElementChild);
+                }
+              }
+            };
+            update();
+        </script>
+    </body>
+</html>
