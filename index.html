@@ -3,16 +3,45 @@
     <head>
         <title>Bubble Sheet</title>
         <style>
-            body {
-                display: flex;
-                gap: 20px;
+            @font-face {
+              font-family: 'Obese';
+              font-style: normal;
+              font-weight: 500 900;
+              font-display: swap;
+              src: url(https://fonts.gstatic.com/s/archivoblack/v22/HTxqL289NzCGg4MzN6KJ7eW6CYyF_g.woff2) format('woff2');
             }
-            * {
-                font-family: sans-serif;
+            @font-face {
+              font-family: 'Obese';
+              font-style: normal;
+              font-weight: 100 400;
+              font-display: swap;
+              src: url(https://fonts.gstatic.com/s/inter/v19/UcCO3FwrK3iLTeHuS_nVMrMxCp50SjIw2boKoduKmMEVuLyfAZ9hiA.woff2) format('woff2');
+            }
+            :root {
+                --background: #DDF;
+                --highlight-a: #FEE;
+                --highlight-b: #FFD;
+            }
+            body, dialog {
+                background: var(--background);
+            }
+            body {
+                padding: 10px;
+                height: 100vh;
+            }
+            main {
+                display: flex;
+                gap: 15px;
+                height: 100%;
+            }
+            *:not(dialog) {
+                box-sizing: border-box;
+                margin: 0;
+                font-family: "Obese";
             }
             .column {
                 display: flex;
-                gap: 20px;
+                gap: 15px;
                 flex-direction: column;
             }
             .column > * {
@@ -21,19 +50,21 @@
             }
             #right {
                 flex-grow: 1;
+                gap: 10px;
+            }
+            #bar {
+                display: flex;
+                gap: 5px;
             }
             iframe {
                 grid-row-start: 1;
                 grid-column: 2;
                 grid-row-end: 4;
-                width: 99%;
+                width: 100%;
                 height: 100%;
             }
-            div {
+            #scroll {
                 overflow: scroll;
-            }
-            body {
-                height: 90vh;
             }
             table {
                 border-collapse: collapse;
@@ -44,20 +75,21 @@
             thead {
                 position: sticky;
                 top: 0;
-                background: #DDF;
+                background: var(--highlight-b);
             }
             td:first-child, th:first-child {
                 text-align: right;
                 padding-right: 5px;
                 width: 100%;
             }
-            iframe, #scroll, input, button {
+            .round, button, input {
                 border-radius: 10px;
                 border: 1px solid black;
             }
-            #count, button {
+            #count, button, #bar span {
                 line-height: 20px;
                 border-radius: 100px;
+                background: var(--highlight-a);
             }
             input[type="checkbox"] {
                 appearance: none;
@@ -68,60 +100,106 @@
             input[type="checkbox"]:checked {
                 background: black;
             }
+            .wrong input[type="checkbox"]:checked {
+                background: red;
+            }
+            .right input[type="checkbox"]:checked {
+                background: green;
+            }
+            #score {
+                display: none;
+            }
+            span {
+                flex-grow: 1;
+                text-align: left;
+                padding: 5px;
+            }
+            #bar button {
+                aspect-ratio: 1;
+                background: var(--highlight-b);
+            }
+            dialog::backdrop {
+                background: #0008;
+                backdrop-filter: blur(5px);
+            }
         </style>
     </head>
     <body>
-        <div class="column">
-            <p>How many questions?</p>
-            <input type="number" id="count" onchange="update()"/>
-            <div id="scroll">
-                <table>
-                    <thead>
-                        <tr><th>Question</th><th>A</th><th>B</th><th>C</th><th>D</th></tr>
-                    </thead>
-                    <tbody></tbody>
-                </table>
+        <main>
+            <div class="column">
+                <p>How many questions?</p>
+                <input type="number" id="count" onchange="update()"/>
+                <div id="scroll" class="round">
+                    <table>
+                        <thead>
+                            <tr><th>Question</th><th>A</th><th>B</th><th>C</th><th>D</th></tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+                <div id="score">
+                    <p>Your score is:</p>
+                    <h1></h1>
+                </div>
+                <button onclick="grading.showModal()">Grade</button>
             </div>
-            <button onclick="grade()">Grade</button>
-        </div>
-        <div class="column" id="right">
-            <h1>NYS Regents Exam</h1>
-            <iframe src="https://nysedregents.org/"></iframe>
-        </div>
+            <div class="column" id="right">
+                <h1>NYS Regents Exam</h1>
+                <div id="bar">
+                    <button onclick="window.history.back()">←</button>
+                    <button onclick="window.history.forward()">→</button>
+                    <span class="round">https://nysedregents.org/</span>
+                </div>
+                <iframe src="https://nysedregents.org/" class="round"></iframe>
+            </div>
+        </main>
+        <dialog class="round" id="grading">
+            <div class="column">
+                <h1>Enter answer key:</h1>
+                <textarea class="round" id="key"></textarea>
+                <button onclick="grade()">Grade</button>
+            </div>
+        </dialog>
+        <dialog class="round" id="begin">
+            <div class="column">
+                <h1>Are you ready to begin?</h1>
+                <button onclick="fullscreen()">Begin</button>
+            </div>
+        </dialog>
         <script>
             var questions = 0;
             var input = document.querySelector("input");
             var table = document.querySelector("tbody");
-            Array.prototype.count = function(item) {
-                return this.reduce((a, b) => b == item ? a + 1 : a, 0);
-            };
-            Array.prototype.counts = function() {
-                return [...new Set(this)].map(item => this.count(item));
-            };
-            Array.prototype.chunk = function*(count) {
-                var increment = this.length / count;
-                for(var i = 0; i < this.length; i += increment) {
-                    yield this.slice(i, i + increment);
-                }
-            };
-            Array.prototype.mode = function() {
-                return this.reduce((a, b) => this.count(a) > this.count(b) ? a : b);
-            };
-            Array.prototype.remove = function(item) {
-                return this.filter(thing => thing != item);
-            };
+            var grading = document.querySelector("#grading");
+            var begin = document.querySelector("#begin");
+            var answers = document.querySelector("textarea");
+            var score = document.querySelector("#score h1");
+            var result = document.querySelector("#score");
+            begin.showModal();
+            function fullscreen() {
+                document.documentElement.requestFullscreen();
+                begin.close();
+            }
             function grade() {
-                var key = prompt("Enter answer key").split(" ");
-                var questions = key.counts().remove(1).mode();
-                key = [...key.chunk(questions)];
-                var score = 0;
-                for(var i = 0; i < questions; i++) {
+                var key = answers.value.split("\n").map(row => row.split(" "));
+                var total = 0;
+                for(var i = 0; i < questions && i < key.length; i++) {
                     var answer = key[i][key[i].indexOf((i + 1).toString()) + 1];
-                    if(table.children[i].children[answer].firstChild.checked) {
-                        score++;
+                    for(var [index, cell] of Object.entries(table.children[i].children)) {
+                        cell.removeAttribute("class");
+                        if(cell.firstChild.checked) {
+                            if(index == answer) {
+                                total++;
+                                cell.classList.add("right");
+                            } else {
+                                cell.classList.add("wrong");
+                            }
+                        }
                     }
                 }
-                alert(`Your score is: ${score}/${questions}`);
+                score.textContent = `${total}/${i}`;
+                result.style.display = "block";
+                grading.close();
             }
             function update() {
               if(input.value > questions) {
